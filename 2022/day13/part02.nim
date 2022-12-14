@@ -2,14 +2,17 @@ import std/[algorithm, json]
 
 type
   Order = enum
-    Next, RightOrder, NotRightOrder
+    RightOrder = -1
+    Next = 0
+    NotRightOrder = 1
 
-proc cmpPackets(a, b: JsonNode): Order =
+proc cmpPackets(a, b: JsonNode): int =
   var
     iA = 0
     iB = 0
+    order = Next
 
-  while result == Next:
+  while order == Next:
     if iB < len(b) and iA < len(a):
       var
         nA = a.elems[iA]
@@ -21,36 +24,29 @@ proc cmpPackets(a, b: JsonNode): Order =
           intB = getInt(nB)
 
         if intA < intB:
-          result = RightOrder
+          order = RightOrder
         elif intA > intB:
-          result = NotRightOrder
+          order = NotRightOrder
       elif nA.kind == JArray and nB.kind == JArray:
-        result = cmpPackets(nA, nB)
+        order = Order(cmpPackets(nA, nB))
       else:
         if nA.kind == JInt:
           nA = %([getInt(nA)])
         else:
           nB = %([getInt(nB)])
 
-        result = cmpPackets(nA, nB)
+        order = Order(cmpPackets(nA, nB))
 
       inc(iB)
       inc(iA)
     elif iA == len(a) and iB == len(b):
       break
     elif iA == len(a):
-      result = RightOrder
+      order = RightOrder
     else:
-      result = NotRightOrder
+      order = NotRightOrder
 
-proc cmp(x, y: JsonNode): int =
-  case cmpPackets(x, y)
-  of RightOrder:
-    result = -1
-  of NotRightOrder:
-    result = 1
-  of Next:
-    result = 0
+  result = ord(order)
 
 let dividerPackets = [parseJson("[[2]]"), parseJson("[[6]]")]
 
@@ -66,7 +62,7 @@ for l in lines("input.txt"):
 
 add(packets, dividerPackets)
 
-sort(packets, cmp)
+sort(packets, cmpPackets)
 
 for i,p in packets:
   if p == dividerPackets[0]:
