@@ -1,77 +1,77 @@
 import std/[algorithm, json]
 
 type
-  MyObject = object
-    first: int
-    elements: int
-    packet: JsonNode
+  Order = enum
+    Next, RightOrder, NotRightOrder
 
-proc findFirst(a: JsonNode): int =
-  for n in a:
-    case n.kind
-    of JInt:
-      result = getInt(n)
+proc cmpPackets(a, b: JsonNode): Order =
+  var
+    iA = 0
+    iB = 0
+
+  while result == Next:
+    if iB < len(b) and iA < len(a):
+      var
+        nA = a.elems[iA]
+        nB = b.elems[iB]
+
+      if nA.kind == JInt and nB.kind == JInt:
+        let
+          intA = getInt(nA)
+          intB = getInt(nB)
+
+        if intA < intB:
+          result = RightOrder
+        elif intA > intB:
+          result = NotRightOrder
+      elif nA.kind == JArray and nB.kind == JArray:
+        result = cmpPackets(nA, nB)
+      else:
+        if nA.kind == JInt:
+          nA = %([getInt(nA)])
+        else:
+          nB = %([getInt(nB)])
+
+        result = cmpPackets(nA, nB)
+
+      inc(iB)
+      inc(iA)
+    elif iA == len(a) and iB == len(b):
       break
-    of JArray:
-      result = findFirst(n)
-      break
+    elif iA == len(a):
+      result = RightOrder
     else:
-      discard
+      result = NotRightOrder
 
-proc countElements(a: JsonNode): int =
-  for n in a:
-    case n.kind
-    of JInt:
-      inc(result)
-    of JArray:
-      result += countElements(n)
-    else:
-      discard
-
-proc cmp(x, y: MyObject): int =
-  if x.first < y.first:
+proc cmp(x, y: JsonNode): int =
+  case cmpPackets(x, y)
+  of RightOrder:
     result = -1
-  elif x.first > y.first:
+  of NotRightOrder:
     result = 1
-  else:
-    if x.elements < y.elements:
-      result = -1
-    elif x.elements > y.elements:
-      result = 1
+  of Next:
+    result = 0
 
 let dividerPackets = [parseJson("[[2]]"), parseJson("[[6]]")]
 
 var
-  packets = newSeqOfCap[MyObject](302)
+  packets = newSeqOfCap[JsonNode](302)
   indexDivider1, indexDivider2 = -1
 
 for l in lines("input.txt"):
   if l == "":
     continue
 
-  var myObject: MyObject
+  add(packets, parseJson(l))
 
-  myObject.packet = parseJson(l)
-  myObject.first = findFirst(myObject.packet)
-  myObject.elements = countElements(myObject.packet)
-
-  add(packets, myObject)
-
-for p in dividerPackets:
-  var myObject: MyObject
-
-  myObject.packet = p
-  myObject.first = findFirst(myObject.packet)
-  myObject.elements = countElements(myObject.packet)
-
-  add(packets, myObject)
+add(packets, dividerPackets)
 
 sort(packets, cmp)
 
 for i,p in packets:
-  if p.packet == dividerPackets[0]:
+  if p == dividerPackets[0]:
     indexDivider1 = i + 1
-  elif p.packet == dividerPackets[1]:
+  elif p == dividerPackets[1]:
     indexDivider2 = i + 1
 
 echo "Answer: ", indexDivider1 * indexDivider2
